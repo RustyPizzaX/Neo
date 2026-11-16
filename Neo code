@@ -1,0 +1,194 @@
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define W 128
+#define H 64
+
+Adafruit_SSD1306 display(W, H, &Wire, -1);
+
+enum Motion {
+  IDLE,
+  BLINK,
+  LOOK,
+  SLEEP
+};
+
+Motion currentMotion = IDLE;
+
+unsigned long lastFrame = 0;
+unsigned long startTime = 0;
+
+int frame = 0;
+
+const int FPS_DELAY = 120;
+
+
+void drawRobot(int bob, Motion motion) {
+
+  display.clearDisplay();
+
+  
+  int x = 48;
+  int y = 13 + bob;
+
+  
+  display.drawLine(x + 16, y, x + 16, y - 6,
+                   SSD1306_WHITE);
+  display.fillCircle(x + 16, y - 7, 2,
+                     SSD1306_WHITE);
+
+  
+  display.drawRoundRect(x, y, 32, 27, 5,
+                        SSD1306_WHITE);
+
+  
+  display.fillRect(x - 3, y + 9, 3, 8,
+                   SSD1306_WHITE);
+  display.fillRect(x + 32, y + 9, 3, 8,
+                   SSD1306_WHITE);
+
+  
+  if (motion == BLINK || motion == SLEEP) {
+
+    display.drawLine(x + 6, y + 12,
+                     x + 12, y + 12,
+                     SSD1306_WHITE);
+
+    display.drawLine(x + 20, y + 12,
+                     x + 26, y + 12,
+                     SSD1306_WHITE);
+
+  } else {
+
+    int eyeOffset = 0;
+
+    if (motion == LOOK) {
+      eyeOffset = 3;
+    }
+
+    display.fillRect(x + 7 + eyeOffset,
+                     y + 8, 5, 7,
+                     SSD1306_WHITE);
+
+    display.fillRect(x + 21 + eyeOffset,
+                     y + 8, 5, 7,
+                     SSD1306_WHITE);
+  }
+
+  
+  if (motion == SLEEP) {
+
+    display.drawLine(x + 13, y + 21,
+                     x + 19, y + 21,
+                     SSD1306_WHITE);
+
+    
+    display.setTextSize(1);
+    display.setCursor(x + 34, y - 4);
+    display.print("Z");
+
+  } else {
+
+    display.drawPixel(x + 14, y + 21,
+                      SSD1306_WHITE);
+    display.drawPixel(x + 16, y + 21,
+                      SSD1306_WHITE);
+    display.drawPixel(x + 18, y + 21,
+                      SSD1306_WHITE);
+  }
+
+  
+  display.drawRoundRect(x + 7, y + 28,
+                        18, 14, 3,
+                        SSD1306_WHITE);
+
+  
+  display.fillCircle(x + 16, y + 34, 2,
+                     SSD1306_WHITE);
+
+  
+  display.drawLine(x + 11, y + 42,
+                   x + 9, y + 46,
+                   SSD1306_WHITE);
+
+  display.drawLine(x + 21, y + 42,
+                   x + 23, y + 46,
+                   SSD1306_WHITE);
+
+  
+  display.drawPixel(8, 8, SSD1306_WHITE);
+  display.drawPixel(120, 8, SSD1306_WHITE);
+
+  display.drawLine(8, 54, 28, 54,
+                   SSD1306_WHITE);
+
+  display.setTextSize(1);
+  display.setCursor(8, 57);
+  display.print("NEO v0.1");
+
+  display.display();
+}
+
+void updateMotion(unsigned long now) {
+
+  unsigned long cycle = now % 18000;
+
+  if (cycle >= 12000 && cycle < 15000) {
+    currentMotion = SLEEP;
+  }
+
+  else if (cycle >= 7000 && cycle < 8500) {
+    currentMotion = LOOK;
+  }
+
+  else if ((cycle >= 3000 && cycle < 3200) ||
+           (cycle >= 9000 && cycle < 9200)) {
+    currentMotion = BLINK;
+  }
+
+  else {
+    currentMotion = IDLE;
+  }
+}
+
+void setup() {
+
+  Wire.begin();
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    while (true);
+  }
+
+  display.clearDisplay();
+  display.display();
+
+  startTime = millis();
+}
+
+void loop() {
+
+  unsigned long now = millis();
+
+  if (now - lastFrame >= FPS_DELAY) {
+
+    lastFrame = now;
+
+    updateMotion(now - startTime);
+
+    
+    int bob = 0;
+
+    if (currentMotion == IDLE) {
+      bob = (frame % 4 < 2) ? 0 : -1;
+    }
+
+    if (currentMotion == SLEEP) {
+      bob = 1;
+    }
+
+    drawRobot(bob, currentMotion);
+
+    frame++;
+  }
+}
